@@ -1,0 +1,9 @@
+{
+  "action": "navigate",
+  "args": {
+    "url": "http://localhost:5173/search",
+    "newTab": true,
+    "group_title": "Music App检查"
+  },
+  "session": "music-app-check-2"
+}
