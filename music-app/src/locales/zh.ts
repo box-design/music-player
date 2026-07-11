@@ -53,6 +53,7 @@ const zh = {
     languageDesc: '切换应用显示语言',
     chinese: '中文',
     english: 'English',
+    openSource: '获取源码',
   },
 
   // 侧边栏导航

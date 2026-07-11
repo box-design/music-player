@@ -53,6 +53,7 @@ const en: LocaleType = {
     languageDesc: 'Switch display language',
     chinese: '中文',
     english: 'English',
+    openSource: 'Get source code',
   },
 
   sidebar: {

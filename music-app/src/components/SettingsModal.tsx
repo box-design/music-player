@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Globe } from 'lucide-react';
+import { X, Globe, Github } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useI18n } from '@/hooks/useI18n';
 import type { Language } from '@/locales';
@@ -193,6 +193,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </span>
             </div>
           </div>
+
+          {/* Open source */}
+          <a
+            href="https://github.com/box-design/music-player"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/15 transition-colors"
+          >
+            <Github size={18} className="text-text-secondary" />
+            <span className="text-sm font-medium text-text-primary">{t('settings.openSource')}</span>
+          </a>
         </div>
       </div>
     </div>
