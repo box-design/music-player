@@ -9,8 +9,8 @@ interface AppState {
   enableGlassmorphism: boolean;
   lightingIntensity: number;
   searchHistory: string[];
-  /** 全屏播放器风格：经典双面板 / Aurora Pulse 可视化 */
-  playerStyle: 'classic' | 'visual';
+  /** 全屏播放器风格：经典双面板 / Aurora Pulse 可视化 / Lunar Dither */
+  playerStyle: 'classic' | 'visual' | 'lunar';
   /** 界面语言 */
   language: Language;
 
@@ -22,7 +22,7 @@ interface AppState {
   toggleGlassmorphism: () => void;
   setGlassmorphism: (enabled: boolean) => void;
   setLightingIntensity: (intensity: number) => void;
-  setPlayerStyle: (style: 'classic' | 'visual') => void;
+  setPlayerStyle: (style: 'classic' | 'visual' | 'lunar') => void;
   setLanguage: (lang: Language) => void;
   addSearchHistory: (keyword: string) => void;
   clearSearchHistory: () => void;

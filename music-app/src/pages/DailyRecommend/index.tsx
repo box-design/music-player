@@ -11,7 +11,13 @@ import { getSongUrl, getLyric } from '@/api/song';
 export default function DailyRecommend() {
   const { t } = useI18n();
   const { data: songs, loading } = useRequest(getRecommendSongs);
-  const { setCurrentSong, setPlaylist, setIsPlaying, setAudioUrl, setLyrics } = usePlayerStore();
+  // 只订阅稳定 actions：整 store 订阅会让页面随 currentTime(~4次/秒)重渲染，
+  // 并级联重渲染未 memo 的 SongList（大歌单数百行 → 主线程被占死）。
+  const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setAudioUrl = usePlayerStore((s) => s.setAudioUrl);
+  const setLyrics = usePlayerStore((s) => s.setLyrics);
 
   const today = new Date();
   const day = today.getDate();

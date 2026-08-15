@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ensureAudioGraph, AUDIO_FFT_SIZE } from '@/lib/audioGraph';
 import { usePlayerStore } from '@/stores/usePlayerStore';
+import { reportDiag } from '@/lib/diag';
 
 // 连续多少帧「应该有声但频谱全 0」才判定不可用。
 const SILENCE_FRAMES_LIMIT = 30;
@@ -55,6 +56,9 @@ export function useAnalyser(
     silenceFrames: 0,
     lastTime: 0,
     decided: false, // 本曲已判定，不再反复翻转
+    // 播放卡顿诊断：isPlaying 为真但 currentTime 停滞的连续帧数
+    stallFrames: 0,
+    stalledLogged: false,
   });
 
   useEffect(() => {
@@ -131,7 +135,35 @@ export function useAnalyser(
               setAvailable(true);
             }
           }
+          // 进度在走 → 卡顿计数清零
+          stateRef.current.stallFrames = 0;
+        } else {
+          // ── 播放卡顿诊断：曾正常播放过（lastTime > 0），随后 currentTime
+          //    连续 ~1s 不动，说明音频解码/缓冲把主线程或音频线程占死了，
+          //    与 canvas 渲染无关（每首歌只记录一次）。──
+          if (stateRef.current.lastTime > 0) {
+            stateRef.current.stallFrames += 1;
+            if (
+              stateRef.current.stallFrames > 60 &&
+              !stateRef.current.stalledLogged
+            ) {
+              stateRef.current.stalledLogged = true;
+              const song = usePlayerStore.getState().currentSong;
+              const stallInfo = {
+                song: song ? { id: song.id, name: song.name } : null,
+                stalledMs: Math.round(stateRef.current.stallFrames * 16.7),
+                readyState: audioEl.readyState,
+                networkState: audioEl.networkState,
+                ctxState: graph.ctx.state,
+              };
+              console.warn('[useAnalyser] 播放卡住(解码/缓冲阻塞)', stallInfo);
+              reportDiag('audioStall', stallInfo); // 同步上报到开发服务器日志
+            }
+          }
         }
+      } else {
+        // 暂停 / 拖拽期间不累计卡顿
+        stateRef.current.stallFrames = 0;
       }
 
       rafId = requestAnimationFrame(loop);
@@ -148,6 +180,8 @@ export function useAnalyser(
     stateRef.current.silenceFrames = 0;
     stateRef.current.decided = false;
     stateRef.current.lastTime = 0;
+    stateRef.current.stallFrames = 0;
+    stateRef.current.stalledLogged = false;
     setAvailable(true);
   }, [currentSong?.id]);
 

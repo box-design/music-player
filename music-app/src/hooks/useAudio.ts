@@ -79,7 +79,10 @@ export function useAudio() {
             break;
           }
         }
-        setCurrentLyricIndexRef.current(index);
+        // 索引未变化时不重复 set，避免每次 timeupdate 都通知所有订阅者
+        if (index !== usePlayerStore.getState().currentLyricIndex) {
+          setCurrentLyricIndexRef.current(index);
+        }
       }
     };
 

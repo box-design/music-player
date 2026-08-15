@@ -1,4 +1,6 @@
+import { memo } from 'react';
 import { Play, Pause, Heart, MoreHorizontal } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { formatDuration, getImageUrl } from '@/utils/format';
@@ -15,7 +17,7 @@ interface SongListProps {
   className?: string;
 }
 
-export default function SongList({
+const SongList = memo(function SongList({
   songs,
   showHeader = true,
   showAlbum = true,
@@ -23,6 +25,9 @@ export default function SongList({
   className = '',
 }: SongListProps) {
   const { t } = useI18n();
+  // 只订阅低频变化的字段（currentSong/isPlaying/playlist 及稳定 actions）。
+  // 此前整 store 订阅会让大歌单（数百行）随 currentTime 每 ~250ms 全量重渲染，
+  // 叠加 GC 停顿，导致可视化全屏播放时主线程被占死（单次长任务最高 600ms+）。
   const {
     currentSong,
     isPlaying,
@@ -33,7 +38,19 @@ export default function SongList({
     setAudioUrl,
     setLyrics,
     addToPlaylist,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((s) => ({
+      currentSong: s.currentSong,
+      isPlaying: s.isPlaying,
+      playlist: s.playlist,
+      setCurrentSong: s.setCurrentSong,
+      setPlaylist: s.setPlaylist,
+      setIsPlaying: s.setIsPlaying,
+      setAudioUrl: s.setAudioUrl,
+      setLyrics: s.setLyrics,
+      addToPlaylist: s.addToPlaylist,
+    }))
+  );
 
   const { isLoggedIn, likedSongIds, addLikedSong, removeLikedSong } = useUserStore();
 
@@ -193,4 +210,6 @@ export default function SongList({
       </div>
     </div>
   );
-}
+});
+
+export default SongList;

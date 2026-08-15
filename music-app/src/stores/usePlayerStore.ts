@@ -1,10 +1,79 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware';
 import type { Song, LyricLine, PlayMode } from '@/types';
 import { getSongUrl, getLyric } from '@/api/song';
 
 // 用于防止快速切歌时的竞态条件
 let fetchId = 0;
+
+/**
+ * 节流 localStorage 持久化存储。
+ *
+ * 背景：`setCurrentTime` 随音频 timeupdate 每 ~250ms 触发一次 store set，
+ * persist 默认每次 set 都会同步 `JSON.stringify` 整个 partialize 结果
+ * （含完整 currentSong + playlist）并写入 localStorage——歌单越大，主线程
+ * 同步阻塞越明显（大歌单可达数毫秒/次），且随会话时间累积、与当前歌曲无关，
+ * 是"某些歌单里普遍卡顿"的可疑来源之一。
+ *
+ * 这里把 stringify + 写入合并为每 ~1s 至多一次（写前才序列化），把主线程上的
+ * 同步开销降低到 ~1 次/秒。注意不能做成"最后一次变更后 1s 才写"的纯防抖：
+ * 播放中 timeupdate 持续触发 set 会把定时器无限推迟，导致播放期间永不落盘，
+ * 刷新/关闭页面后恢复的是陈旧歌曲。因此定时器只按第一个变更排期，之后高频
+ * set 仅刷新待写入内容，保证最新状态按 ~1s 周期持续写入。刷新最多丢失最后
+ * ~1s 的进度（仅 currentTime 等低频信息）。
+ */
+let persistWriteTimer: ReturnType<typeof setTimeout> | null = null;
+/** 待写入的最新序列化内容：定时器挂起期间由后续 set 刷新 */
+let pendingPersistRaw: string | null = null;
+
+/** partialize 持久化的字段子集（persist 要求 storage 匹配该子集类型） */
+interface PersistedPlayerState {
+  volume: number;
+  playMode: PlayMode;
+  currentSong: Song | null;
+  playlist: Song[];
+  currentTime: number;
+  audioUrl: string;
+}
+
+const throttledPersistStorage: PersistStorage<PersistedPlayerState> = {
+  getItem: (name) => {
+    try {
+      const raw = window.localStorage.getItem(name);
+      return raw ? (JSON.parse(raw) as StorageValue<PersistedPlayerState>) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    // 始终缓存最新内容；已有待写入任务时不再重置定时器，
+    // 否则播放中高频 timeupdate 会让写入被无限推迟、永不落盘。
+    pendingPersistRaw = JSON.stringify(value);
+    if (persistWriteTimer) return;
+    persistWriteTimer = setTimeout(() => {
+      persistWriteTimer = null;
+      try {
+        if (pendingPersistRaw !== null) {
+          window.localStorage.setItem(name, pendingPersistRaw);
+        }
+      } catch {
+        // 配额/隐私模式等失败时静默丢弃
+      }
+    }, 1000);
+  },
+  removeItem: (name) => {
+    if (persistWriteTimer) {
+      clearTimeout(persistWriteTimer);
+      persistWriteTimer = null;
+    }
+    pendingPersistRaw = null;
+    try {
+      window.localStorage.removeItem(name);
+    } catch {
+      // ignore
+    }
+  },
+};
 
 interface PlayerState {
   currentSong: Song | null;
@@ -173,6 +242,7 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'player-storage',
+      storage: throttledPersistStorage,
       partialize: (state) => ({
         volume: state.volume,
         playMode: state.playMode,

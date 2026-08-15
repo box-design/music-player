@@ -19,7 +19,13 @@ export default function ArtistDetail() {
   const { id } = useParams<{ id: string }>();
   const artistId = Number(id);
   const [activeTab, setActiveTab] = useState<Tab>('songs');
-  const { setCurrentSong, setPlaylist, setIsPlaying, setAudioUrl, setLyrics } = usePlayerStore();
+  // 只订阅稳定 actions：整 store 订阅会让页面随 currentTime(~4次/秒)重渲染，
+  // 并级联重渲染未 memo 的 SongList（大歌单数百行 → 主线程被占死）。
+  const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setAudioUrl = usePlayerStore((s) => s.setAudioUrl);
+  const setLyrics = usePlayerStore((s) => s.setLyrics);
 
   const { data: artist, loading: artistLoading } = useRequest(
     async () => {

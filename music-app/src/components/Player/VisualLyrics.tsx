@@ -7,6 +7,10 @@
  * - 颜色：骨骼白；鼓点瞬间文字边缘泛出黄色辉光（ff-beat-pulse）。
  * - 定位：压在中央封面之上的「断裂线」位置（画面上 1/3），不居中。
  * - 切行动画：错位散开淡出 / 错位复位淡入。
+ *
+ * 性能设计：
+ * - 鼓点黄辉光用 Web Animations API 重放（element.animate），
+ *   不再把 beatTick 塞进 key 导致每拍重挂载整行歌词（重建字符 span + 重放入场动画）。
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -34,8 +38,10 @@ export default function VisualLyrics({
   const [active, setActive] = useState<ActiveLine | null>(null);
   const [prev, setPrev] = useState<ActiveLine | null>(null);
   const [seq, setSeq] = useState(0);
-  // 鼓点触发黄辉光的计数器（每次鼓点 +1，触发 CSS 动画重放）
+  // 鼓点触发黄辉光的计数器（每次鼓点 +1，触发辉光动画重放）
   const [beatTick, setBeatTick] = useState(0);
+  // 当前行 DOM 引用，用于 WAAPI 重放鼓点辉光
+  const lineRef = useRef<HTMLParagraphElement | null>(null);
 
   useEffect(() => {
     if (currentLyricIndex < 0 || !lyrics[currentLyricIndex]) {
@@ -71,7 +77,7 @@ export default function VisualLyrics({
         st.cooldown = Math.max(0, st.cooldown - 1);
         if (bass > 0.16 && bass > st.bassAvg * 1.32 && st.cooldown === 0) {
           st.cooldown = 8;
-          setBeatTick((t) => t + 1); // 触发 ff-beat-pulse 重放
+          setBeatTick((t) => t + 1); // 触发辉光动画重放
         }
       }
       rafId = requestAnimationFrame(loop);
@@ -79,6 +85,29 @@ export default function VisualLyrics({
     rafId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId);
   }, [isPlaying, available, snapshot]);
+
+  // ── 鼓点黄辉光：WAAPI 重放，避免每拍重挂载整行歌词 ──
+  useEffect(() => {
+    if (beatTick === 0) return;
+    const el = lineRef.current;
+    if (!el) return;
+    // 只清除 WAAPI 生成的辉光动画（animationName 为 'none'），
+    // 避免把切行时的 CSS 入场动画（viz-lyric-in）一并取消。
+    el.getAnimations().forEach((a) => {
+      if ((a as CSSAnimation).animationName === 'none') a.cancel();
+    });
+    el.animate(
+      [
+        { textShadow: '0 0 0 rgba(255,230,0,0)' },
+        {
+          textShadow: '-2px 0 14px rgba(255,230,0,0.85), 2px 0 4px rgba(255,153,0,0.6)',
+          offset: 0.18,
+        },
+        { textShadow: '0 0 0 rgba(255,230,0,0)' },
+      ],
+      { duration: 600, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
+    );
+  }, [beatTick]);
 
   return (
     <div
@@ -103,10 +132,9 @@ export default function VisualLyrics({
         {/* 当前行：错位复位 + 渐显 + 鼓点黄辉光 + 字符级故障 */}
         {active ? (
           <p
-            key={`cur-${active.key}-${beatTick}`}
-            className={`viz-lyric-line viz-lyric-in relative ${
-              isPlaying ? 'ff-beat-pulse' : ''
-            }`}
+            key={`cur-${active.key}`}
+            ref={lineRef}
+            className="viz-lyric-line viz-lyric-in relative"
           >
             <GlitchText text={active.text} beatTick={beatTick} />
           </p>

@@ -10,10 +10,13 @@
  */
 
 import { ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useAudio } from '@/hooks/useAudio';
 import { useAnalyser } from '@/hooks/useAnalyser';
 import { useI18n } from '@/hooks/useI18n';
+import { getImageUrl } from '@/utils/format';
+import { extractDominantColor, type RgbTuple } from '@/utils/coverColor';
 import MusicVisualizer from './MusicVisualizer';
 import SongInfoCard from './SongInfoCard';
 import VisualLyrics from './VisualLyrics';
@@ -24,9 +27,26 @@ interface VisualPlayerProps {
 
 export default function VisualPlayer({ isExiting }: VisualPlayerProps) {
   const { t } = useI18n();
-  const { isPlaying, setIsFullPlayerOpen } = usePlayerStore();
+  const { currentSong, isPlaying, setIsFullPlayerOpen } = usePlayerStore();
   const { audioRef } = useAudio();
   const { snapshot, available } = useAnalyser(audioRef, true);
+  const [coverColor, setCoverColor] = useState<RgbTuple | undefined>(undefined);
+
+  // 切歌时提取封面主色，驱动点阵发光色
+  useEffect(() => {
+    let cancelled = false;
+    const url = getImageUrl(currentSong?.album?.picUrl || currentSong?.picUrl, 200);
+    if (!url) {
+      setCoverColor(undefined);
+      return;
+    }
+    extractDominantColor(url, 64).then((color) => {
+      if (!cancelled) setCoverColor(color ?? undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSong?.id]);
 
   return (
     <div
@@ -34,11 +54,12 @@ export default function VisualPlayer({ isExiting }: VisualPlayerProps) {
         isExiting ? 'animate-fp-retract-out' : 'animate-fp-fade-in'
       }`}
     >
-      {/* ── 全屏可视化（骨脊线 / 飞白 / 裂光 / 暗噪 / 断裂相框）── */}
+      {/* ── 全屏可视化（点阵深渊 / 骨脊线 / 飞白 / 裂光 / 暗噪 / 断裂相框）── */}
       <MusicVisualizer
         snapshot={snapshot}
         available={available}
         isPlaying={isPlaying}
+        coverColor={coverColor}
       />
 
       {/* ── 顶部栏：关闭按钮 ── */}

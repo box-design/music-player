@@ -156,7 +156,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <p className="text-sm font-medium text-text-primary">{t('settings.playerStyle')}</p>
               <p className="text-xs text-text-tertiary mt-0.5">{t('settings.playerStyleDesc')}</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-white/10 rounded-xl">
+            <div className="grid grid-cols-3 gap-2 p-1 bg-white/10 rounded-xl">
               <button
                 onClick={() => setPlayerStyle('classic')}
                 className={`py-2 rounded-lg text-sm font-medium transition-all ${
@@ -176,6 +176,16 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 }`}
               >
                 {t('settings.visual')}
+              </button>
+              <button
+                onClick={() => setPlayerStyle('lunar')}
+                className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                  playerStyle === 'lunar'
+                    ? 'bg-primary text-white shadow'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                }`}
+              >
+                {t('settings.lunarDither')}
               </button>
             </div>
           </div>

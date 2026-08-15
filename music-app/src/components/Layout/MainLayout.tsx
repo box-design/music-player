@@ -10,7 +10,9 @@ import { usePlayerStore } from '@/stores/usePlayerStore';
 export default function MainLayout() {
   const location = useLocation();
   const { enableGlassmorphism } = useAppStore();
-  const { isFullPlayerOpen } = usePlayerStore();
+  // 只订阅 isFullPlayerOpen：整 store 订阅会让 MainLayout 随
+  // currentTime 等高频字段（~4 次/秒）无谓重渲染整棵背景树。
+  const isFullPlayerOpen = usePlayerStore((s) => s.isFullPlayerOpen);
   const isHome = location.pathname === '/';
   const intensity = isHome ? 1 : 0.35;
 

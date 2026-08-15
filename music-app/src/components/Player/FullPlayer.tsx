@@ -9,6 +9,7 @@ import CoverDisplay from './CoverDisplay';
 import LyricsPanel from './LyricsPanel';
 import PlayerControls from './PlayerControls';
 import VisualPlayer from './VisualPlayer';
+import LunarPlayer from './LunarPlayer';
 
 export default function FullPlayer() {
   const {
@@ -39,6 +40,11 @@ export default function FullPlayer() {
   // ── 可视化风格：委托给 VisualPlayer，沿用同一套可见性/退场动画 ──
   if (playerStyle === 'visual') {
     return <VisualPlayer isExiting={isExiting} />;
+  }
+
+  // ── 月相抖动风格：委托给 LunarPlayer ──
+  if (playerStyle === 'lunar') {
+    return <LunarPlayer isExiting={isExiting} />;
   }
 
   // ── 经典风格：原双面板布局 ──

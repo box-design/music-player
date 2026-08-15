@@ -43,17 +43,16 @@ export default function RadarCoverStack({ songs, className = '' }: RadarCoverSta
   const { ref: containerRef, width: containerWidth } = useContainerWidth();
   const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartXRef = useRef(0);
-  const {
-    currentSong,
-    isPlaying,
-    playlist,
-    setCurrentSong,
-    setPlaylist,
-    setIsPlaying,
-    setAudioUrl,
-    setLyrics,
-    addToPlaylist,
-  } = usePlayerStore();
+  // 只订阅低频变化的字段与稳定 actions，避免随 currentTime(~4次/秒)全量重渲染
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const playlist = usePlayerStore((s) => s.playlist);
+  const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setAudioUrl = usePlayerStore((s) => s.setAudioUrl);
+  const setLyrics = usePlayerStore((s) => s.setLyrics);
+  const addToPlaylist = usePlayerStore((s) => s.addToPlaylist);
 
   const visibleSongs = useMemo(() => songs.slice(0, 5), [songs]);
   const total = visibleSongs.length;

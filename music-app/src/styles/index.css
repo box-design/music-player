@@ -614,3 +614,489 @@
   clip-path: inset(15% 0 35% 0);
   opacity: 0.55;
 }
+
+/* ========== 月相抖动 · LUNAR DITHER 可视化播放器 ========== */
+/* 严格单色：纯黑 / 纯白 / 灰阶 */
+
+:root {
+  --lunar-black: #000000;
+  --lunar-white: #ffffff;
+  --lunar-gray: #8a8a8a;
+  --lunar-panel-glow: rgba(255, 255, 255, 0.12);
+}
+
+/* 科幻终端面板：切角 / 等宽 / 白边框 */
+.lunar-panel {
+  position: relative;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% 100%,
+    18px 100%,
+    0 calc(100% - 18px)
+  );
+}
+
+/* 顶部栏内面板：绝对悬浮于退出键右侧；折叠时只露折叠栏，
+ * 展开时向下溢出顶部栏（下拉式控制面板）。 */
+.lunar-panel--header {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* 面板四角装饰短线 */
+.lunar-panel-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.lunar-panel-corner::before,
+.lunar-panel-corner::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+}
+.lunar-panel-corner--tl {
+  top: 4px;
+  left: 4px;
+}
+.lunar-panel-corner--tl::before {
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 1px;
+}
+.lunar-panel-corner--tl::after {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 10px;
+}
+.lunar-panel-corner--tr {
+  top: 4px;
+  right: 4px;
+}
+.lunar-panel-corner--tr::before {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 1px;
+}
+.lunar-panel-corner--tr::after {
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 10px;
+}
+.lunar-panel-corner--bl {
+  bottom: 4px;
+  left: 4px;
+}
+.lunar-panel-corner--bl::before {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 1px;
+}
+.lunar-panel-corner--bl::after {
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 10px;
+}
+.lunar-panel-corner--br {
+  bottom: 4px;
+  right: 4px;
+}
+.lunar-panel-corner--br::before {
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 1px;
+}
+.lunar-panel-corner--br::after {
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  height: 10px;
+}
+
+/* 等宽字体工具类 */
+.font-mono-lunar {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* CRT 扫描线工具类（用于 DOM 叠加） */
+.lunar-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.35) 3px,
+    rgba(0, 0, 0, 0.35) 4px
+  );
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* 胶片噪点工具类（静态 SVG 噪点） */
+.lunar-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+  background-size: 160px 160px;
+}
+
+/* 月相抖动播放器：右上角视角切换按钮（白色相框 + 大写白色英文） */
+.lunar-mode-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lunar-mode-btn {
+  position: relative;
+  padding: 7px 14px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% 100%,
+    10px 100%,
+    0 calc(100% - 10px)
+  );
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.lunar-mode-btn:hover {
+  border-color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lunar-mode-btn--active {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.22);
+}
+
+/* ── 月相抖动播放器：像素风歌词层 ──
+ * 仅在 TERRAIN 视角显示（LunarPlayer 条件渲染），定位与 TERRAIN 月球互补：
+ * 横屏月球贴右 → 歌词居左；竖屏月球贴底 → 歌词居顶。
+ * 折行 + max-height 裁切保证不遮挡月球。 */
+.lunar-lyrics {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--lunar-lyric-fs);
+  color: #ffffff;
+  --lunar-lyric-fs: clamp(1rem, 3vw, 1.9rem);
+  --lunar-lyric-lh: 1.55;
+}
+
+/* 横屏：左侧竖排区，避开贴右的月球 */
+@media (orientation: landscape) {
+  .lunar-lyrics {
+    top: 50%;
+    left: 28px;
+    width: min(30vw, 460px);
+    max-height: calc(100vh - 90px);
+    transform: translateY(-50%);
+    text-align: left;
+    --lunar-lyric-fs: clamp(1rem, 2.6vw + 1.4vh, 1.9rem);
+  }
+}
+
+/* 竖屏：顶部居中区，避开贴底的月球（85vh - 90vw 为月球顶缘留白；
+ * top 88px = 顶部栏 64px + 间隙，歌曲面板已移入顶部栏不再占用下方空间） */
+@media (orientation: portrait) {
+  .lunar-lyrics {
+    top: 88px;
+    left: 50%;
+    width: min(90vw, 600px);
+    max-height: clamp(96px, calc(85vh - 90vw - 88px), 42vh);
+    transform: translateX(-50%);
+    text-align: center;
+    --lunar-lyric-fs: clamp(1.05rem, 4.4vw, 1.8rem);
+  }
+}
+
+.lunar-lyrics-label {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 8px;
+}
+
+/* 当前行槽位：固定最小高度，旧行绝对覆盖同槽交叉淡出（em 基于容器 font-size） */
+.lunar-lyric-slot {
+  position: relative;
+  min-height: 1.75em;
+}
+
+.lunar-lyric-line {
+  line-height: var(--lunar-lyric-lh);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.5);
+  /* 硬阴影错位：无模糊的像素重影 */
+  text-shadow:
+    2px 0 0 rgba(255, 255, 255, 0.12),
+    -1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.lunar-lyric-line--active {
+  position: relative;
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow:
+    3px 0 0 rgba(255, 255, 255, 0.22),
+    -2px 0 0 rgba(255, 255, 255, 0.1),
+    0 0 14px rgba(255, 255, 255, 0.35);
+}
+
+.lunar-lyric-line--dim {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.lunar-lyric-line--next {
+  color: rgba(255, 255, 255, 0.18);
+  font-weight: 400;
+}
+
+/* 闪烁方块光标（终端输入感） */
+.lunar-lyric-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.82em;
+  margin-right: 0.35em;
+  background: #ffffff;
+  vertical-align: -0.08em;
+  animation: lunar-cursor-blink 1.06s infinite;
+}
+@keyframes lunar-cursor-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+/* ── 当前行入场：像素步进扫描展开 + 上移复位 ── */
+@keyframes lunar-lyric-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+.lunar-lyric-in {
+  position: relative;
+  animation: lunar-lyric-in 340ms steps(6, end) both;
+}
+
+/* ── 当前行入场期：上下分层单色 glitch 错位残影（attr(data-text) 克隆）── */
+.lunar-lyric-in::before,
+.lunar-lyric-in::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.lunar-lyric-in::before {
+  color: rgba(255, 255, 255, 0.5);
+  clip-path: inset(0 0 54% 0);
+  animation: lunar-glitch-a 340ms steps(5) both;
+}
+.lunar-lyric-in::after {
+  color: rgba(255, 255, 255, 0.32);
+  clip-path: inset(54% 0 0 0);
+  animation: lunar-glitch-b 340ms steps(5) both;
+}
+@keyframes lunar-glitch-a {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-4px, 1px);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(3px, -1px);
+  }
+  60% {
+    transform: translate(-2px, 1px);
+    opacity: 0.9;
+  }
+  80% {
+    transform: translate(2px, -2px);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+@keyframes lunar-glitch-b {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  25% {
+    transform: translate(4px, 1px);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-3px, -1px);
+  }
+  75% {
+    transform: translate(2px, 0);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+
+/* ── 旧行退场：像素步进上收 + 渐隐（与当前行同槽交叉淡出）── */
+@keyframes lunar-lyric-out {
+  from {
+    opacity: 0.45;
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+}
+.lunar-lyric-out {
+  position: absolute;
+  inset: 0;
+  animation: lunar-lyric-out 300ms steps(5, end) both;
+}
+
+/* ── 整块切换抖动：呼应月球鼓点像素 glitch ── */
+@keyframes lunar-kick {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-2px, 1px);
+  }
+  40% {
+    transform: translate(2px, -1px);
+  }
+  60% {
+    transform: translate(-1px, 0);
+  }
+}
+.lunar-lyric-kick {
+  animation: lunar-kick 240ms steps(4, end) both;
+}
+
+/* ── 月相抖动播放器：歌曲信息折叠栏 ── */
+.lunar-panel-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 160ms ease;
+}
+.lunar-panel-bar:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.lunar-panel-bar-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lunar-panel-bar-artist {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lunar-panel-bar-caret {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform 180ms steps(3, end);
+}
+.lunar-panel-bar-caret.is-open {
+  transform: rotate(180deg);
+}
+
+/* 展开内容：像素步进自上而下展开 */
+.lunar-panel-body {
+  animation: lunar-panel-grow 260ms steps(6, end) both;
+  overflow: hidden;
+}
+@keyframes lunar-panel-grow {
+  from {
+    opacity: 0;
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}

@@ -15,17 +15,16 @@ export default function PrivateFM() {
   const [fmSongs, setFmSongs] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const {
-    isPlaying,
-    currentTime,
-    duration,
-    setCurrentSong,
-    setIsPlaying,
-    setAudioUrl,
-    setLyrics,
-    setDuration,
-    setCurrentTime,
-  } = usePlayerStore();
+  // 只订阅实际用到的字段：整 store 订阅会让页面随 currentTime(~4次/秒)重渲染
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
+  const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setAudioUrl = usePlayerStore((s) => s.setAudioUrl);
+  const setLyrics = usePlayerStore((s) => s.setLyrics);
+  const setDuration = usePlayerStore((s) => s.setDuration);
+  const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
 
   const { isLoggedIn, likedSongIds, addLikedSong, removeLikedSong } = useUserStore();
 
